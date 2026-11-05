@@ -1,4 +1,5 @@
 {
   "name": "Sport Clips",
+  "country": ["US", "CA"],
   "homeassistant": "2026.10.0"
 }

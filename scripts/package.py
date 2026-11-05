@@ -44,6 +44,8 @@ def build(root: Path, output: Path) -> Path:
     project = tomllib.loads((root / "pyproject.toml").read_text())["project"]
     if manifest["domain"] != "sportclips" or manifest["version"] != project["version"]:
         raise ValueError("domain/version mismatch")
+    if (component / "LICENSE").read_bytes() != (root / "LICENSE").read_bytes():
+        raise ValueError("component license differs from repository license")
     strings = json.loads((component / "strings.json").read_text())
     if json.loads((component / "translations/en.json").read_text()) != strings:
         raise ValueError("English translation differs")

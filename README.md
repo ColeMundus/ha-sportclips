@@ -1,78 +1,76 @@
 # Sport Clips for Home Assistant
 
 Account-free estimated waits and store status for selected Sport Clips salons.
-Independent, unofficial integration; not affiliated with or endorsed by Sport Clips.
+Independent and unofficial; not affiliated with or endorsed by Sport Clips.
 
-## Installation (private preview)
+## Install
 
-Requires **Home Assistant Core 2026.10.0 or later**. Tested with Core 2026.10.0,
-Python 3.14.7 and the real Home Assistant test harness. Later versions are not yet
-verified. No additional runtime packages, server, account, API key or cookies.
+Requires **Home Assistant Core 2026.10.0 or later**. Automated tests use Core
+2026.10.0 and Python 3.14.7; installation and setup have also been verified on Core
+2026.10.0 with Python 3.14.6. Later Core versions have not been verified. No account,
+API key, cookies, additional runtime packages or separate server are needed.
 
-This repository is private: **HACS installation and validation are unavailable**.
-No public release or catalog listing is claimed. Authorized repository users can:
+### Manual installation
 
-1. Back up the Home Assistant configuration and any existing `sportclips` directory.
-2. Copy `custom_components/sportclips` into the configuration directory's
-   `custom_components` folder (or extract the locally built manual ZIP there).
-3. Restart Home Assistant, then open **Settings → Devices & services → Add integration
-   → Sport Clips**.
-4. Enter a **city or ZIP code**, select the geographic suggestion, then the salon.
-   Repeat setup for additional salons. Duplicate salons are rejected.
+1. Back up your Home Assistant configuration and any existing `sportclips` folder.
+2. Copy `custom_components/sportclips` into your configuration directory's
+   `custom_components` folder. Alternatively, extract the manual-install ZIP built
+   with [the package command](CONTRIBUTING.md) into the configuration directory.
+3. Restart Home Assistant.
 
-To remove it, delete its integration entries, remove the component folder and restart.
-No production installation has been verified yet. Do not overwrite an existing
-component without a backup; restore that folder and restart to roll back an upgrade.
+### HACS
 
-## Entities and refresh behavior
+**Unavailable while this repository is private. It is not listed in the HACS catalog.**
+If public distribution is approved later, add
+`https://github.com/ColeMundus/ha-sportclips` under **HACS → Custom repositories**,
+choose **Integration**, download Sport Clips and restart Home Assistant. HACS uses
+repository source; the manual-install ZIP is not a HACS release asset.
+
+## Set up
+
+Open **Settings → Devices & services → Add integration → Sport Clips**. Enter a
+**city or ZIP code**, choose the geographic suggestion, then select a salon.
+Repeat setup to monitor more salons; duplicate salons are rejected.
+
+To remove it, delete its integration entries, remove the component folder and
+restart. To roll back an update, restore the backed-up folder and restart.
+
+## Sensors
 
 Each salon has two sensors sharing one read every **120 seconds**:
 
-- **Estimated wait**: provider display estimate in minutes, without rounding or
-  a fabricated countdown. Genuine `0` is preserved. Missing, negative, malformed,
-  closed/offline and unknown-state waits are **unknown**, not zero.
-- **Store status**: provider state mapped to open, lineup opens soon, opens soon,
-  closed until next day, closed or offline. Unrecognized states are **unknown**.
-  Store status does not imply online check-in availability.
+| Sensor | Value |
+| --- | --- |
+| Estimated wait | Provider estimate in minutes, including genuine zero. Missing, invalid or non-open waits are **unknown**, not zero. |
+| Store status | Open, lineup opens soon, opens soon, closed until next day, closed or offline. Unrecognized states are **unknown**. |
 
-A failed read makes both sensors **unavailable**; the last successful wait is not
-shown as current. Recovery restores them after a complete successful read.
-Automatic reads are shared by both sensors. Manual refreshes, simultaneous refreshes
-and entry reloads cannot accelerate salon reads past 120 seconds. Transport/server
-errors use exponential backoff up to one hour, honoring a longer `Retry-After`
-(delta seconds or HTTP-date). Provider error cooldowns are host-wide and apply to
-setup as well as polling; they can temporarily defer other salons. Cooldowns survive
-entry reloads and reopened flows in the same HA process, not full Core restarts.
+Failed reads make both sensors **unavailable** until a successful read. Manual
+refreshes and entry reloads cannot bypass the polling interval. Errors use
+exponential backoff up to one hour, or longer when required by `Retry-After`.
+Provider error cooldowns are shared across salons and setup flows until Core
+restarts. `fetched_at` is the local fetch time; `response_generated_at` is the
+provider response time. Neither proves when the wait estimate was last calculated.
 
-`fetched_at` records the successful local fetch and `response_generated_at` the
-provider response time. Neither proves the upstream wait was newly calculated.
-Time-only upstream values are not invented into dated timestamps. Dates in selected
-salon queries use that salon's IANA time zone. Estimates can change, are not an
-appointment or a guarantee, and are not published as long-term measurement statistics.
+## Limitations and privacy
 
-## Privacy and limitations
+- Estimates are not appointments or guarantees. Store status does not establish
+  online check-in availability. No booking, check-in, account or stylist actions
+  are provided; the metadata POST is a read-only query.
+- The undocumented provider endpoint may change or reject automation. No provider
+  quota, availability guarantee or permission to automate is implied. Access
+  errors do not trigger authentication or challenge bypass.
+- Search covers a bounded area, not a guaranteed nearest-salon search. Try a more
+  specific ZIP code if needed. A missing selected salon is a failed read, not proof
+  it was deleted. Dates use the selected salon's time zone.
+- Searches and salon coordinates are sent to the provider. Selected salon identity,
+  coordinates and time zone are stored in HA configuration and backups; search
+  queries are not saved. History may reveal salon preferences. Do not share
+  unredacted configuration or logs. No raw responses or diagnostics are exported.
 
-Only anonymous geographic search and bounded store metadata reads are used.
-The metadata endpoint uses POST for a **read query**, not a check-in. No account,
-stylist, booking, check-in creation/modification/cancellation or store-context actions
-exist. No authentication or challenge bypass is attempted on access errors.
+## Contributing and license
 
-City/ZIP searches and selected salon coordinates are sent to the provider. The
-selected salon's public identity, coordinates and time zone are stored in the HA
-config entry (and backups). Search queries are not saved by the integration. Entity
-history may reveal salon preferences. Avoid sharing unredacted HA configuration or
-logs. No raw provider responses or diagnostics are exported by this integration.
-
-This is an undocumented first-party endpoint and may change or reject automation;
-no provider quota, availability guarantee or automation license is asserted. Discovery
-covers a bounded 0.8-degree rectangle, not a nationwide or guaranteed nearest-store
-search. Polling uses a tiny 0.01-degree rectangle and exact source ID matching;
-a missing result is a failed read, not evidence the salon was deleted. Large cities
-may require a more specific ZIP code. Optional stylist data is deliberately excluded.
-
-## Development
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for reproducible checks and manual packaging.
-Source and original generic artwork are [MIT licensed](LICENSE). Service names and
-trademarks remain their owners' property; the code license does not grant service
-access or trademark rights. See [SECURITY.md](SECURITY.md) for reporting guidance.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and release preparation, and
+[SECURITY.md](SECURITY.md) for safe reporting. Code is [MIT licensed](LICENSE).
+Sport Clips artwork and trademarks belong to their respective owners; see the
+[artwork notice](custom_components/sportclips/brand/NOTICE.md). The code license
+does not grant trademark rights or permission to access the service.

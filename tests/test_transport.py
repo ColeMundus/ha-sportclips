@@ -44,7 +44,10 @@ async def test_http_date_retry_after(http, freezer):
 
 async def test_external_network_stays_blocked(http):
     with socket.socket() as connection:
-        with pytest.raises(pytest_socket.SocketConnectBlockedError):
+        with (
+            pytest.warns(UserWarning, match=r'host "192\.0\.2\.1"'),
+            pytest.raises(pytest_socket.SocketConnectBlockedError),
+        ):
             connection.connect(("192.0.2.1", 443))
 
 

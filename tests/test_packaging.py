@@ -48,6 +48,22 @@ def test_manual_package_is_deterministic_self_contained_and_importable(
     assert result.returncode == 0, result.stderr
 
 
+def test_package_rejects_component_license_drift(tmp_path):
+    source = tmp_path / "source"
+    shutil.copytree(
+        ROOT / "custom_components",
+        source / "custom_components",
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
+    shutil.copy(ROOT / "pyproject.toml", source)
+    shutil.copy(ROOT / "LICENSE", source)
+    (source / "custom_components/sportclips/LICENSE").write_text("Incorrect license")
+
+    with pytest.raises(ValueError, match="license differs"):
+        build(source, tmp_path / "out")
+    assert not (tmp_path / "out").exists()
+
+
 @pytest.mark.parametrize(
     "damage", ["missing", "version", "symlink", "unexpected", "translation"]
 )
@@ -59,6 +75,7 @@ def test_invalid_package_source_rejected(tmp_path, damage):
         ignore=shutil.ignore_patterns("__pycache__"),
     )
     shutil.copy(ROOT / "pyproject.toml", source)
+    shutil.copy(ROOT / "LICENSE", source)
     component = source / "custom_components/sportclips"
     if damage == "missing":
         (component / "client.py").unlink()

@@ -1,28 +1,46 @@
 # Contributing
 
 Use uv and Python 3.14.7. The lock pins Core 2026.10.0 and
-pytest-homeassistant-custom-component 0.13.371 (aiohttp 3.14.4, probatio 0.13.0).
+pytest-homeassistant-custom-component 0.13.371.
 
 ```sh
 uv sync --locked
 uv pip check
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy
-uv run python -m pytest --cov=custom_components.sportclips --cov-branch --cov-report=term-missing --cov-fail-under=95
-uv run python scripts/package.py
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy
+uv run --locked python -m pytest --cov=custom_components.sportclips --cov-branch --cov-report=term-missing --cov-fail-under=95
+uv run --locked python scripts/package.py
 ```
 
-Tests run real aiohttp against synthetic loopback responses and the actual Home
-Assistant flow/lifecycle/state harness. External connects remain blocked. No account,
-live location, service credential or Home Assistant installation is required by CI.
-Write a failing behavior test at the HTTP or HA public boundary before implementation;
-run red, implement the smallest slice, then run green. Do not replace HA with stubs.
-Keep captures and research outside the product tree. Do not run live service tests
-in routine CI or add real salon/location fixtures.
+Tests use synthetic loopback HTTP responses and the real Home Assistant
+flow/lifecycle/state harness. External connections are blocked. Write a failing
+behavior test before changing code. Do not include real locations, configuration,
+credentials or provider captures in tests or bug reports. Include Core/integration
+versions, reproduction steps and sanitized errors when reporting a bug.
 
-The package command builds a deterministic manual-install ZIP under `dist/`, with a
-SHA256 file. It contains `custom_components/sportclips/...` for extraction at the HA
-configuration root. This is not a HACS release asset. CI validates with hassfest;
-HACS is deliberately skipped while the repository is private. Publication, release
-creation, visibility changes and live HA installation require separate authorization.
+The package command builds a deterministic manual-install ZIP and SHA256 file in
+`dist/`. Extract it at the HA configuration root; it includes
+`custom_components/sportclips/`. HACS instead downloads repository source using
+the standard integration layout, without `zip_release`.
+
+## Release preparation
+
+CI validates Python checks, packaging, Actionlint and hassfest. HACS validation is
+skipped while the repository is private; it must pass **without ignores** before
+public distribution. CI never publishes releases, including on tag pushes.
+
+1. Keep `pyproject.toml` and the integration manifest version identical; update the
+   lock with `uv lock` and rerun checks. Use a beta version for a prerelease.
+2. Review the exact commit, packaged files, artwork notice and test results. Obtain
+   explicit approval before creating a release, changing visibility or installing
+   into a live Home Assistant instance. Private development is not that approval.
+3. Once public distribution is approved, ensure the repository has a description,
+   topics, issues and a recognized license. Run the HACS validator and hassfest on
+   the exact release commit, with no skipped or ignored public checks.
+4. Create an immutable version tag at that tested commit and a matching GitHub
+   release, marking beta releases as prereleases. Verify the remote tag's commit
+   and release version. A tag alone is not a HACS release; no attached ZIP is needed.
+5. Verify HACS custom-repository installation separately. Default-catalog inclusion
+   is a later [HACS submission](https://www.hacs.xyz/docs/publish/include/), not an
+   automatic consequence of publishing a release.
