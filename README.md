@@ -29,7 +29,10 @@ repository source; the manual-install ZIP is not a HACS release asset.
 ## Set up
 
 Open **Settings → Devices & services → Add integration → Sport Clips**. Enter a
-**city or ZIP code**, choose the geographic suggestion, then select a salon.
+**city or ZIP code**, choose the geographic suggestion, then select a salon and
+its **polling interval** (whole minutes, **1–60**, default **2**). Change it later
+from the entry's **Configure** button in **Settings → Devices & services**.
+Existing entries keep the two-minute default until changed.
 Repeat setup to monitor more salons; duplicate salons are rejected.
 
 To remove it, delete its integration entries, remove the component folder and
@@ -37,7 +40,7 @@ restart. To roll back an update, restore the backed-up folder and restart.
 
 ## Sensors
 
-Each salon has two sensors sharing one read every **120 seconds**:
+Each salon has two sensors sharing one read at its configured polling interval:
 
 | Sensor | Value |
 | --- | --- |
@@ -45,7 +48,8 @@ Each salon has two sensors sharing one read every **120 seconds**:
 | Store status | Open, lineup opens soon, opens soon, closed until next day, closed or offline. Unrecognized states are **unknown**. |
 
 Failed reads make both sensors **unavailable** until a successful read. Manual
-refreshes and entry reloads cannot bypass the polling interval. Errors use
+refreshes and entry reloads cannot bypass the polling interval. Changing the
+interval does not shorten an existing polling or provider cooldown. Errors use
 exponential backoff up to one hour, or longer when required by `Retry-After`.
 Provider error cooldowns are shared across salons and setup flows until Core
 restarts. `fetched_at` is the local fetch time; `response_generated_at` is the

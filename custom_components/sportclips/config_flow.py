@@ -4,7 +4,13 @@ from dataclasses import asdict
 from typing import Any
 
 import probatio as p
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -13,10 +19,65 @@ from .const import DOMAIN
 from .models import Location, Salon
 
 
+class PollingIntervalSelector(selector.NumberSelector):
+    """Keep a native number form while rejecting fractional/coerced minutes."""
+
+    def __call__(self, value: Any) -> float:
+        if type(value) not in (int, float) or not float(value).is_integer():
+            raise p.Invalid("Expected whole minutes")
+        return super().__call__(value)
+
+
+def polling_field() -> PollingIntervalSelector:
+    """Build the shared setup/options selector."""
+    return PollingIntervalSelector(
+        selector.NumberSelectorConfig(
+            min=1,
+            max=60,
+            step=1,
+            mode=selector.NumberSelectorMode.BOX,
+            unit_of_measurement="min",
+        )
+    )
+
+
+class SportClipsOptionsFlow(OptionsFlow):
+    """Configure polling for new or existing entries."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                title="",
+                data={
+                    **self.config_entry.options,
+                    "polling_interval": int(user_input["polling_interval"]),
+                },
+            )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=p.Schema(
+                {
+                    p.Required(
+                        "polling_interval",
+                        default=self.config_entry.options.get("polling_interval", 2),
+                    ): polling_field(),
+                }
+            ),
+        )
+
+
 class SportClipsConfigFlow(ConfigFlow, domain=DOMAIN):
     """Create one stable source-salon entry."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> SportClipsOptionsFlow:
+        """Edit the interval without changing salon identity."""
+        return SportClipsOptionsFlow()
 
     def __init__(self) -> None:
         self.locations: list[Location] = []
@@ -87,7 +148,11 @@ class SportClipsConfigFlow(ConfigFlow, domain=DOMAIN):
             salon = next(s for s in self.salons if s.id == user_input["salon"])
             await self.async_set_unique_id(salon.id)
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=salon.name, data=asdict(salon))
+            return self.async_create_entry(
+                title=salon.name,
+                data=asdict(salon),
+                options={"polling_interval": int(user_input["polling_interval"])},
+            )
         return self.async_show_form(
             step_id="salon",
             data_schema=p.Schema(
@@ -102,7 +167,8 @@ class SportClipsConfigFlow(ConfigFlow, domain=DOMAIN):
                                 for item in self.salons
                             ]
                         )
-                    )
+                    ),
+                    p.Required("polling_interval", default=2): polling_field(),
                 }
             ),
         )

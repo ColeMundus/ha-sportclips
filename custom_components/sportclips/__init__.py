@@ -22,10 +22,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: SportClipsConfigEntry) -
         entry,
         SportClipsClient(async_get_clientsession(hass), gate),
         Salon(**entry.data),
+        poll_seconds=int(entry.options.get("polling_interval", 2)) * 60,
     )
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    loaded_options = dict(entry.options)
+
+    async def async_options_updated(
+        hass: HomeAssistant, updated_entry: SportClipsConfigEntry
+    ) -> None:
+        """Only an actual options change requires a new coordinator."""
+        if dict(updated_entry.options) != loaded_options:
+            await hass.config_entries.async_reload(updated_entry.entry_id)
+
+    entry.async_on_unload(entry.add_update_listener(async_options_updated))
     return True
 
 

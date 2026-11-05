@@ -4,13 +4,14 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import probatio
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
-    async_fire_time_changed,
+    async_fire_time_changed_exact,
 )
 
 from tests.test_metadata import STORE, envelope
@@ -82,13 +83,14 @@ async def test_flow_setup_states_unload(hass, http):
     assert not session.closed
 
 
-async def setup_entry(hass, http, store=STORE):
+async def setup_entry(hass, http, store=STORE, options=None):
     http.post(payload=envelope(store))
     entry = MockConfigEntry(
         domain="sportclips",
         title="Example Salon",
         unique_id=store["uid"],
         data=dict(asdict(SALON), id=store["uid"]),
+        options=options or {},
     )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -122,12 +124,19 @@ async def test_pacing_failure_reload_and_recovery(hass, http, freezer):
 
 
 async def test_scheduled_shared_poll_and_shutdown(hass, http, freezer):
-    entry = await setup_entry(hass, http)
+    freezer.move_to("2026-11-05T12:00:00.900000+00:00")
+    start = dt_util.utcnow()
+    with patch("homeassistant.helpers.update_coordinator.randint", return_value=50_000):
+        entry = await setup_entry(hass, http)
     http.post(
         payload=envelope(dict(STORE, waitInfo={"storeState": 40}, displayDetails={}))
     )
-    freezer.tick(timedelta(seconds=121))
-    async_fire_time_changed(hass, dt_util.utcnow())
+    freezer.move_to(start.replace(microsecond=50_000) + timedelta(seconds=120))
+    async_fire_time_changed_exact(hass, dt_util.utcnow())
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(http.requests) == 1
+    freezer.move_to(start + timedelta(seconds=120))
+    async_fire_time_changed_exact(hass, dt_util.utcnow())
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(http.requests) == 2
     assert sorted(s.state for s in hass.states.async_all("sensor")) == [
@@ -135,8 +144,8 @@ async def test_scheduled_shared_poll_and_shutdown(hass, http, freezer):
         "unknown",
     ]
     assert await hass.config_entries.async_unload(entry.entry_id)
-    freezer.tick(timedelta(seconds=600))
-    async_fire_time_changed(hass, dt_util.utcnow())
+    freezer.move_to(start + timedelta(seconds=240))
+    async_fire_time_changed_exact(hass, dt_util.utcnow())
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(http.requests) == 2
 
@@ -167,12 +176,17 @@ async def test_registry_identity_preserved_on_reload(hass, http):
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
-async def test_inflight_retirement_cannot_publish_to_replacement(hass, http, freezer):
+@pytest.mark.parametrize("minutes", [None, 7])
+async def test_inflight_retirement_cannot_publish_to_replacement(
+    hass, http, freezer, minutes
+):
     import asyncio
 
-    entry = await setup_entry(hass, http)
+    options = {} if minutes is None else {"polling_interval": minutes}
+    entry = await setup_entry(hass, http, options=options)
     old = entry.runtime_data
-    freezer.tick(timedelta(seconds=121))
+    seconds = (minutes or 2) * 60
+    freezer.tick(timedelta(seconds=seconds + 1))
     started, release = asyncio.Event(), asyncio.Event()
 
     async def blocked():
@@ -194,7 +208,7 @@ async def test_inflight_retirement_cannot_publish_to_replacement(hass, http, fre
     assert entry.state is ConfigEntryState.SETUP_RETRY
     assert len(http.requests) == 2  # retired queued read and replacement must not poll
     assert old.data.wait_minutes == 0  # blocked response was not published
-    freezer.tick(timedelta(seconds=119))
+    freezer.tick(timedelta(seconds=seconds - 1))
     assert not await hass.config_entries.async_reload(entry.entry_id)
     assert len(http.requests) == 2
     freezer.tick(timedelta(seconds=2))

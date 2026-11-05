@@ -18,7 +18,8 @@
         "title": "Choose a salon",
         "description": "One salon per entry. Repeat setup to monitor more salons.",
         "data": {
-          "salon": "Salon"
+          "salon": "Salon",
+          "polling_interval": "Polling interval (minutes)"
         }
       }
     },
@@ -30,6 +31,17 @@
     },
     "abort": {
       "already_configured": "This salon is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling interval",
+        "description": "Choose whole minutes from 1 to 60. Existing polling and provider cooldowns are preserved.",
+        "data": {
+          "polling_interval": "Polling interval (minutes)"
+        }
+      }
     }
   },
   "entity": {
