@@ -1,7 +1,9 @@
 # Contributing
 
-Use uv and Python 3.14.7. The lock pins Core 2026.10.0 and
-pytest-homeassistant-custom-component 0.13.371.
+Use uv and Python 3.14.7. The lock pins separate compatibility lanes:
+Core 2026.10.0 / pytest-homeassistant-custom-component 0.13.371 (minimum),
+and Core 2026.11.0 / official pytest-homeassistant 2026.11.0 (latest tested).
+The default environment selects minimum. Never install both harnesses together.
 
 ```sh
 uv sync --locked
@@ -12,6 +14,23 @@ uv run --locked mypy
 uv run --locked python -m pytest --cov=custom_components.sportclips --cov-branch --cov-report=term-missing --cov-fail-under=95
 uv run --locked python scripts/package.py
 ```
+
+To run the latest lane in a separate environment:
+
+```sh
+export UV_PROJECT_ENVIRONMENT="$PWD/.venv-latest"
+uv sync --locked --no-default-groups --group dev --group latest
+uv pip check
+uv run --no-sync ruff check .
+uv run --no-sync ruff format --check .
+uv run --no-sync mypy
+uv run --no-sync python -m pytest --cov=custom_components.sportclips --cov-branch --cov-report=term-missing --cov-fail-under=95
+```
+
+Use `--no-sync` after selecting this lane: a default `uv run` would restore minimum.
+The test bootstrap maps legacy helper imports to the official harness only after
+its bootstrap; no Home Assistant modules are replaced. Respx auto-loading is
+disabled so the official harness can install Core's HTTPX alias first.
 
 Tests use synthetic loopback HTTP responses and the real Home Assistant
 flow/lifecycle/state harness. External connections are blocked. Write a failing

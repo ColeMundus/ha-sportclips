@@ -13,8 +13,8 @@ Independent and unofficial; not affiliated with or endorsed by Sport Clips.
 ## Install
 
 Requires **Home Assistant Core 2026.10.0 or later**. Automated tests use Core
-2026.10.0 and Python 3.14.7; installation and setup have also been verified on Core
-2026.10.0 with Python 3.14.6. Later Core versions have not been verified. No account,
+2026.10.0 and 2026.11.0 with Python 3.14.7; installation and setup have also been
+verified on Core 2026.10.0 with Python 3.14.6. No account,
 API key, cookies, additional runtime packages or separate server are needed.
 
 ### Manual installation

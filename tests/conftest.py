@@ -1,10 +1,25 @@
+import sys
 from collections import deque
+from importlib.util import find_spec
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 import pytest_socket
 from aiohttp import web
+
+
+def pytest_configure():
+    """Use the official harness helpers after its bootstrap has run."""
+    if find_spec("pytest_homeassistant_custom_component") is None:
+        import pytest_homeassistant.common
+
+        sys.modules["pytest_homeassistant_custom_component"] = sys.modules[
+            "pytest_homeassistant"
+        ]
+        sys.modules["pytest_homeassistant_custom_component.common"] = (
+            pytest_homeassistant.common
+        )
 
 
 @pytest.fixture(autouse=True)

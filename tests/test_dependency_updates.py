@@ -17,4 +17,5 @@ def test_dependabot_groups_framework_pair():
     ) == {
         "homeassistant",
         "pytest-homeassistant-custom-component",
+        "pytest-homeassistant",
     }
