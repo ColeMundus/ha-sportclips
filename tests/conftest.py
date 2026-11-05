@@ -41,11 +41,13 @@ async def http(aiohttp_server, socket_enabled):
         }
         if callable(payload):
             payload = await payload()
+        if isinstance(payload, web.StreamResponse):
+            return payload
         return web.json_response(payload, status=status, headers=headers)
 
     app = web.Application()
     app.router.add_route("*", "/api/v1/store/{tail:.*}", handler)
-    server = await aiohttp_server(app, host="127.0.0.1")
+    server = await aiohttp_server(app, host="127.0.0.1", access_log=None)
     base = str(server.make_url("/api/v1/store"))
 
     def add(method, url=None, *, payload=None, status=200, headers=None, **kwargs):

@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .client import ProviderError, SportClipsClient
+from .client import ProviderError, SportClipsClient, cooldown_deadline
 from .const import DOMAIN, POLL_SECONDS
 from .models import Salon, Snapshot
 
@@ -56,10 +56,14 @@ class SportClipsCoordinator(DataUpdateCoordinator[Snapshot]):
 
     async def _async_update_data(self) -> Snapshot:
         async with self.poll.lock:
+            if self._shutdown_requested:
+                raise UpdateFailed("retired")
             if datetime.now(UTC) < self.poll.next_attempt:
                 if self.poll.failures == 0 and self.poll.snapshot is not None:
                     return self.poll.snapshot
                 raise UpdateFailed("cooldown")
+            # An old cached success cannot be reused if this attempt retires.
+            self.poll.snapshot = None
             try:
                 snapshot = await self.client.wait(self.salon)
             except ProviderError as error:
@@ -68,11 +72,12 @@ class SportClipsCoordinator(DataUpdateCoordinator[Snapshot]):
                     error.retry_after,
                     min(3600, POLL_SECONDS * 2 ** min(self.poll.failures - 1, 5)),
                 )
-                self.poll.next_attempt = datetime.now(UTC) + timedelta(seconds=delay)
+                self.poll.next_attempt = cooldown_deadline(delay)
                 raise UpdateFailed(str(error)) from None
+            # Pacing belongs to the request, not to publication by this runtime.
+            self.poll.next_attempt = cooldown_deadline(POLL_SECONDS)
             if self._shutdown_requested:
                 raise UpdateFailed("retired")
             self.poll.failures = 0
             self.poll.snapshot = snapshot
-            self.poll.next_attempt = datetime.now(UTC) + timedelta(seconds=POLL_SECONDS)
             return snapshot

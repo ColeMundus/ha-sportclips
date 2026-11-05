@@ -56,6 +56,14 @@ def retry_delay(value: str | None) -> float:
     return max(120, delay) if math.isfinite(delay) else 120
 
 
+def cooldown_deadline(seconds: float) -> datetime:
+    """Saturate unrepresentable provider delays instead of overflowing HA setup."""
+    try:
+        return datetime.now(UTC) + timedelta(seconds=seconds)
+    except OverflowError:
+        return datetime.max.replace(tzinfo=UTC)
+
+
 class SportClipsClient:
     """Use the caller-owned HTTP session; never acquire personal credentials."""
 
@@ -97,7 +105,7 @@ class SportClipsClient:
             delay = max(
                 error.retry_after, min(3600, 120 * 2 ** min(self.gate.failures - 1, 5))
             )
-            self.gate.not_before = datetime.now(UTC) + timedelta(seconds=delay)
+            self.gate.not_before = cooldown_deadline(delay)
             raise ProviderError(str(error), delay) from None
 
     async def search(self, text: str) -> list[Location]:

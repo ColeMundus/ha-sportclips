@@ -39,3 +39,14 @@ async def test_discover_then_read_selected_store_preserves_zero(http):
     assert http.requests[0][3]["data"]["mapArea"]["width"] == 0.8
     assert http.requests[1][3]["data"]["mapArea"]["width"] == 0.01
     assert http.requests[1][2]["storeId"] == "synthetic-store"
+
+
+async def test_selected_date_uses_salon_timezone_not_utc_day(http, freezer):
+    from tests.test_validation import SALON
+
+    freezer.move_to("2026-11-06T00:30:00Z")
+    http.post(payload=envelope(STORE))
+    async with aiohttp.ClientSession() as session:
+        result = await SportClipsClient(session).wait(SALON)
+    assert http.requests[0][2]["scheduleFromDate"] == "2026-11-05"
+    assert result.fetched_at.isoformat() == "2026-11-06T00:30:00+00:00"

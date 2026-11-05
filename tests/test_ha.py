@@ -183,13 +183,24 @@ async def test_inflight_retirement_cannot_publish_to_replacement(hass, http, fre
     http.post(payload=blocked)
     refresh = asyncio.create_task(old.async_refresh())
     await started.wait()
+    queued = asyncio.create_task(old.async_refresh())
+    await asyncio.sleep(0)
     assert await hass.config_entries.async_unload(entry.entry_id)
     http.post(payload=envelope(dict(STORE, displayDetails={"waitTimeAsNumber": 7})))
     replacement = asyncio.create_task(hass.config_entries.async_setup(entry.entry_id))
     release.set()
-    await refresh
-    assert await replacement
+    await asyncio.gather(refresh, queued)
+    assert not await replacement
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert len(http.requests) == 2  # retired queued read and replacement must not poll
+    assert old.data.wait_minutes == 0  # blocked response was not published
+    freezer.tick(timedelta(seconds=119))
+    assert not await hass.config_entries.async_reload(entry.entry_id)
+    assert len(http.requests) == 2
+    freezer.tick(timedelta(seconds=2))
+    assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(http.requests) == 3
     assert entry.runtime_data is not old
     assert sorted(s.state for s in hass.states.async_all("sensor")) == ["7", "open"]
     assert await hass.config_entries.async_unload(entry.entry_id)
@@ -239,3 +250,45 @@ async def test_sensitive_transport_context_not_in_debug_logs(
     assert "PRIVATE_CANARY" not in caplog.text
     assert all(s.state == "unavailable" for s in hass.states.async_all("sensor"))
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_extreme_retry_after_is_unavailable_and_survives_reload(
+    hass, http, freezer
+):
+    entry = await setup_entry(hass, http)
+    freezer.tick(timedelta(seconds=121))
+    http.post(status=429, headers={"Retry-After": "999999999999999999999999999"})
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert all(s.state == "unavailable" for s in hass.states.async_all("sensor"))
+    assert not await hass.config_entries.async_reload(entry.entry_id)
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert len(http.requests) == 2
+
+
+async def test_retired_entry_waiting_for_host_gate_does_not_send_http(
+    hass, http, freezer
+):
+    import asyncio
+
+    first = await setup_entry(hass, http)
+    second = await setup_entry(hass, http, dict(STORE, uid="other", storeUid="other"))
+    freezer.tick(timedelta(seconds=121))
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def blocked():
+        started.set()
+        await release.wait()
+        return envelope(STORE)
+
+    http.post(payload=blocked)
+    reading = asyncio.create_task(first.runtime_data.async_refresh())
+    await started.wait()
+    queued = asyncio.create_task(second.runtime_data.async_refresh())
+    await asyncio.sleep(0)
+    assert second.runtime_data.poll.lock.locked()
+    assert await hass.config_entries.async_unload(second.entry_id)
+    release.set()
+    await asyncio.gather(reading, queued)
+    assert len(http.requests) == 3
+    assert await hass.config_entries.async_unload(first.entry_id)

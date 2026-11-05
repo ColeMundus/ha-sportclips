@@ -83,3 +83,46 @@ async def test_cancellation_propagates_without_becoming_provider_failure(http):
             with pytest.raises(asyncio.CancelledError):
                 await SportClipsClient(session, gate).search("Example")
     assert gate.failures == 0
+
+
+async def test_extreme_retry_after_does_not_crash_cooldown(http):
+    http.get(status=429, headers={"Retry-After": "999999999999999999999999999"})
+    async with aiohttp.ClientSession() as session:
+        client = SportClipsClient(session)
+        with pytest.raises(ProviderError):
+            await client.search("Example")
+        with pytest.raises(ProviderError, match="cooldown"):
+            await client.search("Example")
+    assert len(http.requests) == 1
+
+
+async def test_invalid_json_is_sanitized(http):
+    from aiohttp import web
+
+    http.get(
+        payload=web.Response(
+            body=b"PRIVATE_INVALID_JSON", content_type="application/json"
+        )
+    )
+    async with aiohttp.ClientSession() as session:
+        with pytest.raises(ProviderError, match="invalid_response") as error:
+            await SportClipsClient(session).search("Example")
+    assert "PRIVATE_INVALID_JSON" not in str(error.value)
+
+
+async def test_exponential_backoff_resets_after_recovery(http, freezer):
+    gate = RequestGate()
+    async with aiohttp.ClientSession() as session:
+        client = SportClipsClient(session, gate)
+        for delay in (120, 240, 480):
+            http.get(status=503)
+            with pytest.raises(ProviderError) as error:
+                await client.search("Example")
+            assert error.value.retry_after == delay
+            freezer.tick(timedelta(seconds=delay + 1))
+        http.get(payload={"response": {"searchedLocations": []}})
+        assert await client.search("Example") == []
+        http.get(status=500)
+        with pytest.raises(ProviderError) as error:
+            await client.search("Example")
+        assert error.value.retry_after == 120
