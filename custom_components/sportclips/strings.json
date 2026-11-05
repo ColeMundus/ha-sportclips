@@ -1,0 +1,53 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Find a Sport Clips salon",
+        "description": "Enter a city or ZIP code. No account is needed.",
+        "data": {
+          "search": "City or ZIP code"
+        }
+      },
+      "location": {
+        "title": "Choose a geographic location",
+        "data": {
+          "location": "Location"
+        }
+      },
+      "salon": {
+        "title": "Choose a salon",
+        "description": "One salon per entry. Repeat setup to monitor more salons.",
+        "data": {
+          "salon": "Salon"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not read the provider. Wait before retrying; provider cooldowns are honored.",
+      "no_locations": "No geographic suggestions found. Try another city or ZIP code.",
+      "no_salons": "No salons found in this area. Try another geographic location.",
+      "invalid_search": "Enter a city or ZIP code (1\u2013128 characters)."
+    },
+    "abort": {
+      "already_configured": "This salon is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "wait": {
+        "name": "Estimated wait"
+      },
+      "status": {
+        "name": "Store status",
+        "state": {
+          "open": "Open",
+          "lineup_opens_soon": "Lineup opens soon",
+          "opens_soon": "Opens soon",
+          "closed_until_next_day": "Closed until next day",
+          "closed": "Closed",
+          "offline": "Offline"
+        }
+      }
+    }
+  }
+}

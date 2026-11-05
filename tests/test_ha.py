@@ -1,0 +1,241 @@
+import json
+from dataclasses import asdict
+from datetime import timedelta
+from unittest.mock import AsyncMock, patch
+
+import probatio
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
+
+from tests.test_metadata import STORE, envelope
+from tests.test_validation import SALON
+
+
+async def test_flow_setup_states_unload(hass, http):
+    http.get(
+        payload={
+            "response": {
+                "searchedLocations": [
+                    {"placeName": "Example, State", "latitude": 35, "longitude": -90}
+                ]
+            }
+        }
+    )
+    http.post(payload=envelope(STORE))
+    http.post(payload=envelope(STORE))
+    result = await hass.config_entries.flow.async_init(
+        "sportclips", context={"source": "user"}
+    )
+    assert result["step_id"] == "user"
+    fields = probatio.to_field_list(
+        result["data_schema"], custom_serializer=cv.custom_serializer
+    )
+    assert [field["name"] for field in fields] == ["search"]
+    json.dumps(fields)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"search": "Example"}
+    )
+    assert result["step_id"] == "location"
+    json.dumps(
+        probatio.to_field_list(
+            result["data_schema"], custom_serializer=cv.custom_serializer
+        )
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"location": "0"}
+    )
+    assert result["step_id"] == "salon"
+    json.dumps(
+        probatio.to_field_list(
+            result["data_schema"], custom_serializer=cv.custom_serializer
+        )
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"salon": "synthetic-store"}
+    )
+    assert result["type"] == "create_entry"
+    entry = result["result"]
+    assert entry.unique_id == "synthetic-store"
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert entry.state is ConfigEntryState.LOADED
+    registry = er.async_get(hass)
+    wait_id = registry.async_get_entity_id(
+        "sensor", "sportclips", "synthetic-store_wait"
+    )
+    status_id = registry.async_get_entity_id(
+        "sensor", "sportclips", "synthetic-store_status"
+    )
+    assert hass.states.get(wait_id).state == "0"
+    assert hass.states.get(wait_id).attributes["unit_of_measurement"] == "min"
+    assert "state_class" not in hass.states.get(wait_id).attributes
+    assert hass.states.get(status_id).state == "open"
+    assert len(http.requests) == 3
+    session = entry.runtime_data.client.session
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert entry.state is ConfigEntryState.NOT_LOADED
+    assert not session.closed
+
+
+async def setup_entry(hass, http, store=STORE):
+    http.post(payload=envelope(store))
+    entry = MockConfigEntry(
+        domain="sportclips",
+        title="Example Salon",
+        unique_id=store["uid"],
+        data=dict(asdict(SALON), id=store["uid"]),
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    return entry
+
+
+async def test_pacing_failure_reload_and_recovery(hass, http, freezer):
+    entry = await setup_entry(hass, http)
+    first = entry.runtime_data
+    await first.async_refresh()
+    assert len(http.requests) == 1  # manual refresh cannot accelerate polling
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    assert len(http.requests) == 1  # reload cannot bypass polling floor
+    coordinator = entry.runtime_data
+    freezer.tick(timedelta(seconds=121))
+    http.post(status=429, headers={"Retry-After": "600"})
+    await coordinator.async_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert all(s.state == "unavailable" for s in hass.states.async_all("sensor"))
+    await coordinator.async_refresh()
+    assert await hass.config_entries.async_reload(entry.entry_id) is False
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert len(http.requests) == 2
+    freezer.tick(timedelta(seconds=601))
+    http.post(payload=envelope(dict(STORE, displayDetails={"waitTimeAsNumber": 12})))
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["12", "open"]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_scheduled_shared_poll_and_shutdown(hass, http, freezer):
+    entry = await setup_entry(hass, http)
+    http.post(
+        payload=envelope(dict(STORE, waitInfo={"storeState": 40}, displayDetails={}))
+    )
+    freezer.tick(timedelta(seconds=121))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(http.requests) == 2
+    assert sorted(s.state for s in hass.states.async_all("sensor")) == [
+        "closed_until_next_day",
+        "unknown",
+    ]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    freezer.tick(timedelta(seconds=600))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(http.requests) == 2
+
+
+async def test_failed_first_refresh_and_unload_failure(hass, http):
+    http.post(status=503)
+    entry = MockConfigEntry(domain="sportclips", unique_id=SALON.id, data=asdict(SALON))
+    entry.add_to_hass(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_registry_identity_preserved_on_reload(hass, http):
+    entry = await setup_entry(hass, http)
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id(
+        "sensor", "sportclips", "synthetic-store_wait"
+    )
+    registry.async_update_entity(entity_id, name="My wait")
+    with patch.object(
+        hass.config_entries, "async_unload_platforms", new=AsyncMock(return_value=False)
+    ):
+        from custom_components.sportclips import async_unload_entry
+
+        assert not await async_unload_entry(hass, entry)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    assert registry.async_get(entity_id).name == "My wait"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_inflight_retirement_cannot_publish_to_replacement(hass, http, freezer):
+    import asyncio
+
+    entry = await setup_entry(hass, http)
+    old = entry.runtime_data
+    freezer.tick(timedelta(seconds=121))
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def blocked():
+        started.set()
+        await release.wait()
+        return envelope(dict(STORE, displayDetails={"waitTimeAsNumber": 999}))
+
+    http.post(payload=blocked)
+    refresh = asyncio.create_task(old.async_refresh())
+    await started.wait()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    http.post(payload=envelope(dict(STORE, displayDetails={"waitTimeAsNumber": 7})))
+    replacement = asyncio.create_task(hass.config_entries.async_setup(entry.entry_id))
+    release.set()
+    await refresh
+    assert await replacement
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert entry.runtime_data is not old
+    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["7", "open"]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_multiple_entries_and_concurrent_refreshes(hass, http, freezer):
+    import asyncio
+
+    first = await setup_entry(hass, http)
+    second_store = dict(
+        STORE,
+        uid="other",
+        storeUid="other",
+        storeName="Other Salon",
+        displayDetails={"waitTimeAsNumber": 23},
+    )
+    second = await setup_entry(hass, http, second_store)
+    assert len(hass.states.async_all("sensor")) == 4
+    assert second.runtime_data.data.wait_minutes == 23
+    assert first.runtime_data.data.wait_minutes == 0
+    freezer.tick(timedelta(seconds=121))
+    http.post(payload=envelope(dict(STORE, displayDetails={"waitTimeAsNumber": 5})))
+    await asyncio.gather(
+        first.runtime_data.async_refresh(), first.runtime_data.async_refresh()
+    )
+    assert len(http.requests) == 3
+    assert second.runtime_data.data.wait_minutes == 23
+    assert await hass.config_entries.async_unload(first.entry_id)
+    assert await hass.config_entries.async_unload(second.entry_id)
+
+
+async def test_sensitive_transport_context_not_in_debug_logs(
+    hass, http, freezer, caplog
+):
+    import logging
+
+    entry = await setup_entry(hass, http)
+    freezer.tick(timedelta(seconds=121))
+    caplog.clear()
+    caplog.set_level(logging.DEBUG, logger="custom_components.sportclips")
+    with patch.object(
+        entry.runtime_data.client.session,
+        "request",
+        side_effect=TimeoutError("PRIVATE_CANARY"),
+    ):
+        await entry.runtime_data.async_refresh()
+    assert "PRIVATE_CANARY" not in caplog.text
+    assert all(s.state == "unavailable" for s in hass.states.async_all("sensor"))
+    assert await hass.config_entries.async_unload(entry.entry_id)
