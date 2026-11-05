@@ -56,7 +56,13 @@ class SportClipsSensor(CoordinatorEntity[SportClipsCoordinator], SensorEntity):
         self.entity_description = description
         self._attr_unique_id = f"{coordinator.salon.id}_{description.key}"
         label = "Estimated wait" if description.key == "wait" else "Store status"
-        self._attr_name = f"{coordinator.salon.name} {label}"
+        self._attr_name = f"Sport Clips {coordinator.salon.name} {label}"
+        self._object_id = f"sports_clips_{coordinator.salon.name} {label}"
+
+    @property
+    def suggested_object_id(self) -> str:
+        """Prefix default IDs without replacing existing registry identities."""
+        return self._object_id
 
     @property
     def native_value(self) -> float | str | None:

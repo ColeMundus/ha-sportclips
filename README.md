@@ -40,7 +40,9 @@ restart. To roll back an update, restore the backed-up folder and restart.
 
 ## Sensors
 
-Each salon has two sensors sharing one read at its configured polling interval:
+Each salon has two sensors sharing one read at its configured polling interval.
+New entity IDs start with `sensor.sports_clips_`, followed by the salon and sensor
+name. Existing registry IDs and user customizations are not automatically renamed.
 
 | Sensor | Value |
 | --- | --- |
