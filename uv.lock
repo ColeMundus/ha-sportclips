@@ -1164,7 +1164,7 @@ wheels = [
 
 [[package]]
 name = "ha-sportclips"
-version = "0.1.0b3"
+version = "0.1.0"
 source = { virtual = "." }
 default-groups = ["dev", "minimum"]
 
