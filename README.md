@@ -39,36 +39,14 @@ entry's **Configure** button. Repeat setup to monitor additional salons.
 
 ## Sensors
 
-Each salon has an estimated-wait sensor and an Opening binary sensor sharing one
-refresh. Default IDs begin with `sensor.sports_clips_` for waits and
+Each salon provides two entities. Default IDs begin with
+`sensor.sports_clips_` for waits and
 `binary_sensor.sports_clips_` for store status.
 
 | Sensor | Value |
 | --- | --- |
 | Estimated wait | Wait in minutes, including zero. Unknown when no valid estimate is available. |
-| Store status | Native **Open/Closed** boolean with door icons. Only provider-confirmed open is on; opens soon and all known closed states are off. Offline/unrecognized status is unknown. Detailed status remains in the `provider_status` attribute. |
-
-### Upgrading from the enum status sensor
-
-Setup replaces the obsolete status enum using Home Assistant's entity-registry
-APIs. The object name and unique ID are retained, along with custom name, icon,
-area, aliases, labels, categories, device association, and disabled/hidden settings
-where applicable. Domain-independent registry options and explicit assistant
-exposure choices are preserved; an unset exposure choice stays unexposed rather
-than adopting the new binary sensor's broader default. Existing binary-sensor
-customizations take precedence on retry;
-ID collisions receive Home Assistant's normal suffix. Wait sensor identity and
-integration configuration are unchanged.
-
-The status entity necessarily moves from `sensor.<object>` to
-`binary_sensor.<object>` (and receives a new registry record). Update dashboard,
-automation and script references to the old status ID; automations must use `on`
-for Open and `off` for Closed instead of enum strings. Old sensor-specific
-options and device-class overrides are not copied to the boolean. Historical
-status records are not rewritten. No `.storage` files are edited.
-
-Failed reads make sensors **unavailable** until a successful refresh. Automatic
-backoff handles provider errors; manual refreshes respect polling and retry limits.
+| Store status | **Open/Closed** binary sensor with door icons. Unknown when the provider reports no usable status. |
 
 ## Limitations and privacy
 
