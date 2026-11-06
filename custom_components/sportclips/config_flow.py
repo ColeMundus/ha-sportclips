@@ -1,4 +1,4 @@
-"""Account-free city/ZIP, geographic suggestion, then salon selection."""
+"""Account-free home location or city/ZIP search, then salon selection."""
 
 from dataclasses import asdict
 from typing import Any
@@ -91,13 +91,30 @@ class SportClipsConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
-        if user_input is not None and not 1 <= len(user_input["search"].strip()) <= 128:
+        search = user_input.get("search", "").strip() if user_input is not None else ""
+        if user_input is not None and len(search) > 128:
             errors["base"] = "invalid_search"
+        elif user_input is not None and not search:
+            try:
+                location = Location(
+                    "Home Assistant",
+                    self.hass.config.latitude,
+                    self.hass.config.longitude,
+                )
+            except ValueError:
+                errors["base"] = "invalid_home_location"
+            else:
+                try:
+                    self.salons = await self._client().discover(location)
+                except ProviderError:
+                    errors["base"] = "cannot_connect"
+                else:
+                    if self.salons:
+                        return await self.async_step_salon()
+                    errors["base"] = "no_salons"
         elif user_input is not None:
             try:
-                self.locations = await self._client().search(
-                    user_input["search"].strip()
-                )
+                self.locations = await self._client().search(search)
             except ProviderError:
                 errors["base"] = "cannot_connect"
             else:
@@ -106,7 +123,7 @@ class SportClipsConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "no_locations"
         return self.async_show_form(
             step_id="user",
-            data_schema=p.Schema({p.Required("search"): selector.TextSelector()}),
+            data_schema=p.Schema({p.Optional("search"): selector.TextSelector()}),
             errors=errors,
         )
 

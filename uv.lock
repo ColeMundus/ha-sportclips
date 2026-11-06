@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14.2, <3.15"
 conflicts = [[
     { package = "ha-sportclips", group = "latest" },
@@ -1164,9 +1164,8 @@ wheels = [
 
 [[package]]
 name = "ha-sportclips"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "." }
-default-groups = ["dev", "minimum"]
 
 [package.dev-dependencies]
 dev = [
@@ -1793,7 +1792,7 @@ version = "2.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ast-serialize" },
-    { name = "librt", marker = "platform_python_implementation != 'PyPy'" },
+    { name = "librt", marker = "platform_python_implementation != 'PyPy' or (extra == 'group-13-ha-sportclips-latest' and extra == 'group-13-ha-sportclips-minimum')" },
     { name = "mypy-extensions" },
     { name = "pathspec" },
     { name = "typing-extensions" },
@@ -2492,7 +2491,7 @@ name = "pytest"
 version = "9.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'group-13-ha-sportclips-latest' and extra == 'group-13-ha-sportclips-minimum')" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },

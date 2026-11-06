@@ -31,8 +31,9 @@ This integration is **not yet listed in the default HACS catalog**.
 
 ## Set up
 
-Open **Settings → Devices & services → Add integration → Sport Clips**. Search by
-**city or ZIP code**, choose a location, then select a salon and **polling interval**
+Open **Settings → Devices & services → Add integration → Sport Clips**. Leave the
+**city or ZIP code** blank to use your Home Assistant location, or enter a search
+and choose a location. Then select a salon and **polling interval**
 (whole minutes, **1–60**, default **2**). Change the interval later using the
 entry's **Configure** button. Repeat setup to monitor additional salons.
 
@@ -55,7 +56,8 @@ backoff handles provider errors; manual refreshes respect polling and retry limi
   bookings or stylist selection.
 - It uses an undocumented Sport Clips API. Availability, location coverage and
   time-zone accuracy depend on the provider.
-- Searches and salon coordinates are sent to Sport Clips. The selected salon is
+- Search text, your Home Assistant coordinates when using the default location,
+  and selected salon coordinates are sent to Sport Clips. The selected salon is
   stored in Home Assistant; search queries are not saved by the integration.
 
 ## Contributing and license

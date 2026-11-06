@@ -25,8 +25,8 @@ async def configure(hass, result, data):
     return await hass.config_entries.flow.async_configure(result["flow_id"], data)
 
 
-async def test_empty_search_rejected_without_http(hass, http):
-    result = await configure(hass, await begin(hass), {"search": "   "})
+async def test_oversized_search_rejected_without_http(hass, http):
+    result = await configure(hass, await begin(hass), {"search": "x" * 129})
     assert result["errors"] == {"base": "invalid_search"}
     assert len(http.requests) == 0
     hass.config_entries.flow.async_abort(result["flow_id"])

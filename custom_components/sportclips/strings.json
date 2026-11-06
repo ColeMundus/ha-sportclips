@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Find a Sport Clips salon",
-        "description": "Enter a city or ZIP code. No account is needed.",
+        "description": "Leave blank to find salons near your Home Assistant location, or enter a city or ZIP code to search elsewhere. Your chosen search location is sent to Sport Clips. No account is needed.",
         "data": {
           "search": "City or ZIP code"
         }
@@ -26,8 +26,9 @@
     "error": {
       "cannot_connect": "Could not read the provider. Wait before retrying; provider cooldowns are honored.",
       "no_locations": "No geographic suggestions found. Try another city or ZIP code.",
-      "no_salons": "No salons found in this area. Try another geographic location.",
-      "invalid_search": "Enter a city or ZIP code (1\u2013128 characters)."
+      "no_salons": "No salons found in this area. Try another city, ZIP code or geographic location.",
+      "invalid_search": "Enter a city or ZIP code (up to 128 characters), or leave blank to use your Home Assistant location.",
+      "invalid_home_location": "Home Assistant has no valid location. Enter a city or ZIP code instead, or configure your home location in Home Assistant."
     },
     "abort": {
       "already_configured": "This salon is already configured."
