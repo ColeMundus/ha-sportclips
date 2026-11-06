@@ -2,10 +2,10 @@
 
 # Sport Clips for Home Assistant
 
-[![CI workflows](docs/badges/ci.svg)](https://github.com/ColeMundus/ha-sportclips/actions/workflows/ci.yml)
-[![Home Assistant tested: 2026.10.0](docs/badges/home-assistant.svg)](https://github.com/ColeMundus/ha-sportclips/actions/workflows/ci.yml)
-[![Code license: MIT](docs/badges/license.svg)](LICENSE)
-[![HACS: custom repository](docs/badges/hacs.svg)](#hacs)
+[![CI: workflow](docs/badges/ci.svg)](https://github.com/ColeMundus/ha-sportclips/actions/workflows/ci.yml)
+[![HA tested: 2026.10.0 | 2026.11.0](docs/badges/compatibility.svg)](https://github.com/ColeMundus/ha-sportclips/actions/workflows/ci.yml)
+[![License: MIT](docs/badges/license.svg)](LICENSE)
+[![Distribution: HACS custom](docs/badges/distribution.svg)](#hacs)
 
 Account-free estimated waits and store status for selected Sport Clips salons.
 Independent and unofficial; not affiliated with or endorsed by Sport Clips.
