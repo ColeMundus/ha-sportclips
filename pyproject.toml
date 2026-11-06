@@ -7,7 +7,7 @@ dependencies = []
 [dependency-groups]
 dev = [
  "ruff==0.17.3",
- "mypy==1.18.2",
+ "mypy==2.4.1",
  "pytest-cov==7.1.0",
 ]
 minimum = [
