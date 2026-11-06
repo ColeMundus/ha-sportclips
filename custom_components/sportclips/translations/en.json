@@ -49,17 +49,11 @@
     "sensor": {
       "wait": {
         "name": "Estimated wait"
-      },
+      }
+    },
+    "binary_sensor": {
       "status": {
-        "name": "Store status",
-        "state": {
-          "open": "Open",
-          "lineup_opens_soon": "Lineup opens soon",
-          "opens_soon": "Opens soon",
-          "closed_until_next_day": "Closed until next day",
-          "closed": "Closed",
-          "offline": "Offline"
-        }
+        "name": "Store status"
       }
     }
   }

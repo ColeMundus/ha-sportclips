@@ -38,7 +38,8 @@ def test_manual_package_is_deterministic_self_contained_and_importable(
             sys.executable,
             "-c",
             "import custom_components.sportclips.config_flow; "
-            "import custom_components.sportclips.sensor",
+            "import custom_components.sportclips.sensor; "
+            "import custom_components.sportclips.binary_sensor",
         ],
         cwd=tmp_path / "extract",
         capture_output=True,

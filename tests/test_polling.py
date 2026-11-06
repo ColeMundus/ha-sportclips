@@ -56,7 +56,8 @@ async def test_early_timer_rearms_for_poll_floor(hass, http, freezer):
     async_fire_time_changed_exact(hass, dt_util.utcnow())
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(http.requests) == 2
-    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["9", "open"]
+    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["9"]
+    assert hass.states.async_all("binary_sensor")[0].state == "on"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -141,10 +142,8 @@ async def test_configured_schedule_manual_reload_and_shutdown(
         async_fire_time_changed_exact(hass, dt_util.utcnow())
         await hass.async_block_till_done(wait_background_tasks=True)
         assert len(http.requests) == count
-        assert sorted(s.state for s in hass.states.async_all("sensor")) == [
-            str(wait),
-            "open",
-        ]
+        assert sorted(s.state for s in hass.states.async_all("sensor")) == [str(wait)]
+        assert hass.states.async_all("binary_sensor")[0].state == "on"
         if count == 2:
             await entry.runtime_data.async_refresh()
             with patch(
