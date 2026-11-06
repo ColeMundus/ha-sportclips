@@ -9,6 +9,7 @@ from pathlib import Path
 FILES = (
     "LICENSE",
     "__init__.py",
+    "binary_sensor.py",
     "brand/NOTICE.md",
     "brand/icon.png",
     "client.py",

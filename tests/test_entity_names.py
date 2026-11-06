@@ -13,8 +13,10 @@ async def test_new_entities_have_service_prefix(hass, http):
         == "sensor.sports_clips_example_salon_estimated_wait"
     )
     assert (
-        registry.async_get_entity_id("sensor", "sportclips", "synthetic-store_status")
-        == "sensor.sports_clips_example_salon_store_status"
+        registry.async_get_entity_id(
+            "binary_sensor", "sportclips", "synthetic-store_status"
+        )
+        == "binary_sensor.sports_clips_example_salon_store_status"
     )
     assert (
         hass.states.get("sensor.sports_clips_example_salon_estimated_wait").attributes[

@@ -70,12 +70,12 @@ async def test_flow_setup_states_unload(hass, http):
         "sensor", "sportclips", "synthetic-store_wait"
     )
     status_id = registry.async_get_entity_id(
-        "sensor", "sportclips", "synthetic-store_status"
+        "binary_sensor", "sportclips", "synthetic-store_status"
     )
     assert hass.states.get(wait_id).state == "0"
     assert hass.states.get(wait_id).attributes["unit_of_measurement"] == "min"
     assert "state_class" not in hass.states.get(wait_id).attributes
-    assert hass.states.get(status_id).state == "open"
+    assert hass.states.get(status_id).state == "on"
     assert len(http.requests) == 3
     session = entry.runtime_data.client.session
     assert await hass.config_entries.async_unload(entry.entry_id)
@@ -119,7 +119,8 @@ async def test_pacing_failure_reload_and_recovery(hass, http, freezer):
     http.post(payload=envelope(dict(STORE, displayDetails={"waitTimeAsNumber": 12})))
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["12", "open"]
+    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["12"]
+    assert hass.states.async_all("binary_sensor")[0].state == "on"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -139,10 +140,8 @@ async def test_scheduled_shared_poll_and_shutdown(hass, http, freezer):
     async_fire_time_changed_exact(hass, dt_util.utcnow())
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(http.requests) == 2
-    assert sorted(s.state for s in hass.states.async_all("sensor")) == [
-        "closed_until_next_day",
-        "unknown",
-    ]
+    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["unknown"]
+    assert hass.states.async_all("binary_sensor")[0].state == "off"
     assert await hass.config_entries.async_unload(entry.entry_id)
     freezer.move_to(start + timedelta(seconds=240))
     async_fire_time_changed_exact(hass, dt_util.utcnow())
@@ -216,7 +215,8 @@ async def test_inflight_retirement_cannot_publish_to_replacement(
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(http.requests) == 3
     assert entry.runtime_data is not old
-    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["7", "open"]
+    assert sorted(s.state for s in hass.states.async_all("sensor")) == ["7"]
+    assert hass.states.async_all("binary_sensor")[0].state == "on"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -232,7 +232,8 @@ async def test_multiple_entries_and_concurrent_refreshes(hass, http, freezer):
         displayDetails={"waitTimeAsNumber": 23},
     )
     second = await setup_entry(hass, http, second_store)
-    assert len(hass.states.async_all("sensor")) == 4
+    assert len(hass.states.async_all("sensor")) == 2
+    assert len(hass.states.async_all("binary_sensor")) == 2
     assert second.runtime_data.data.wait_minutes == 23
     assert first.runtime_data.data.wait_minutes == 0
     freezer.tick(timedelta(seconds=121))
