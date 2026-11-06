@@ -65,6 +65,25 @@ class SportClipsSensor(CoordinatorEntity[SportClipsCoordinator], SensorEntity):
         return self._object_id
 
     @property
+    def icon(self) -> str | None:
+        """Represent the provider's store status without changing its enum type."""
+        if self.entity_description.key != "status":
+            return super().icon
+        if not self.available:
+            return "mdi:door"
+        status = self.coordinator.data.status
+        if status == "open":
+            return "mdi:door-open"
+        if status in (
+            "lineup_opens_soon",
+            "opens_soon",
+            "closed_until_next_day",
+            "closed",
+        ):
+            return "mdi:door-closed"
+        return "mdi:door"
+
+    @property
     def native_value(self) -> float | str | None:
         """Use provider values, never derive zero from absence."""
         snapshot = self.coordinator.data
