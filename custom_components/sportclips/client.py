@@ -51,7 +51,7 @@ def retry_delay(value: str | None) -> float:
             delay = (
                 parsedate_to_datetime(value or "") - datetime.now(UTC)
             ).total_seconds()
-        except (TypeError, ValueError, OverflowError):
+        except TypeError, ValueError, OverflowError:
             delay = 0.0
     return max(120, delay) if math.isfinite(delay) else 120
 
@@ -92,7 +92,7 @@ class SportClipsClient:
                     data = await response.json()
                     if not isinstance(data, dict):
                         raise ProviderError("invalid_response")
-            except (ClientError, TimeoutError):
+            except ClientError, TimeoutError:
                 error = ProviderError("transport")
             except ValueError:
                 error = ProviderError("invalid_response")
@@ -115,7 +115,7 @@ class SportClipsClient:
                 Location(item["placeName"], item["latitude"], item["longitude"])
                 for item in data["response"]["searchedLocations"]
             ]
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             raise ProviderError("invalid_response") from None
 
     async def _metadata(
@@ -162,7 +162,7 @@ class SportClipsClient:
                 )
                 for item in data["response"]["storeWaitTimes"]
             ]
-        except (KeyError, TypeError, ValueError, ZoneInfoNotFoundError):
+        except KeyError, TypeError, ValueError, ZoneInfoNotFoundError:
             raise ProviderError("invalid_response") from None
 
     async def wait(self, salon: Salon) -> Snapshot:
@@ -189,5 +189,5 @@ class SportClipsClient:
             if generated.utcoffset() is None:
                 raise ValueError("undated response")
             return Snapshot(wait, status, generated, datetime.now(UTC))
-        except (KeyError, TypeError, ValueError, StopIteration, AttributeError):
+        except KeyError, TypeError, ValueError, StopIteration, AttributeError:
             raise ProviderError("invalid_response") from None
