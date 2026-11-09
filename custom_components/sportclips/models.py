@@ -4,7 +4,6 @@ import math
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 
 def text(value: Any) -> str:
@@ -52,7 +51,8 @@ class Salon:
         text(self.name)
         coordinate(self.latitude, 90)
         coordinate(self.longitude, 180)
-        ZoneInfo(self.time_zone)
+        # Database validation belongs to the client's async timezone resolver.
+        text(self.time_zone)
 
 
 @dataclass(frozen=True)
