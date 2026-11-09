@@ -3,12 +3,12 @@
 import asyncio
 import math
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from email.utils import parsedate_to_datetime
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
+from homeassistant.util import dt as dt_util
 
 from .models import Location, Salon, Snapshot
 
@@ -70,6 +70,19 @@ class SportClipsClient:
     def __init__(self, session: ClientSession, gate: RequestGate | None = None) -> None:
         self.session = session
         self.gate = gate if gate is not None else RequestGate()
+        self._time_zones: dict[str, tzinfo] = {}
+
+    async def _async_time_zone(self, name: str) -> tzinfo:
+        """Resolve a salon's zone off-loop once per client, then reuse it."""
+        if name not in self._time_zones:
+            try:
+                zone = await dt_util.async_get_time_zone(name)
+            except ValueError:
+                raise ProviderError("invalid_response") from None
+            if zone is None:
+                raise ProviderError("invalid_response")
+            self._time_zones[name] = zone
+        return self._time_zones[name]
 
     async def _request(self, method: str, route: str, **kwargs: Any) -> dict[str, Any]:
         async with self.gate.lock:
@@ -124,7 +137,7 @@ class SportClipsClient:
         longitude: float,
         width: float,
         store_id: str = "",
-        time_zone: str = "UTC",
+        time_zone: tzinfo = UTC,
     ) -> dict[str, Any]:
         return await self._request(
             "POST",
@@ -132,9 +145,7 @@ class SportClipsClient:
             params={
                 "zoomLevel": "10",
                 "storeId": store_id,
-                "scheduleFromDate": datetime.now(ZoneInfo(time_zone))
-                .date()
-                .isoformat(),
+                "scheduleFromDate": datetime.now(time_zone).date().isoformat(),
             },
             json={
                 "data": {
@@ -151,7 +162,7 @@ class SportClipsClient:
     async def discover(self, location: Location) -> list[Salon]:
         data = await self._metadata(location.latitude, location.longitude, 0.8)
         try:
-            return [
+            salons = [
                 Salon(
                     item["uid"],
                     item["shortName"],
@@ -162,12 +173,16 @@ class SportClipsClient:
                 )
                 for item in data["response"]["storeWaitTimes"]
             ]
-        except KeyError, TypeError, ValueError, ZoneInfoNotFoundError:
+            for salon in salons:
+                await self._async_time_zone(salon.time_zone)
+            return salons
+        except KeyError, TypeError, ValueError:
             raise ProviderError("invalid_response") from None
 
     async def wait(self, salon: Salon) -> Snapshot:
+        time_zone = await self._async_time_zone(salon.time_zone)
         data = await self._metadata(
-            salon.latitude, salon.longitude, 0.01, salon.id, salon.time_zone
+            salon.latitude, salon.longitude, 0.01, salon.id, time_zone
         )
         try:
             item = next(
