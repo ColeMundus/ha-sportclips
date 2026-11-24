@@ -9,6 +9,7 @@ dev = [
  "ruff==0.17.5",
  "mypy==2.4.1",
  "pytest-cov==7.1.0",
+ "pytest-randomly>=5.1.0,<6",
 ]
 minimum = [
  "homeassistant==2026.10.0",
