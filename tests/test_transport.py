@@ -43,21 +43,23 @@ async def test_http_date_retry_after(http, freezer):
 
 
 async def test_external_network_stays_blocked(http):
-    with socket.socket() as connection:
-        with (
-            pytest.warns(UserWarning, match=r'host "192\.0\.2\.1"'),
-            pytest.raises(pytest_socket.SocketConnectBlockedError),
-        ):
-            connection.connect(("192.0.2.1", 443))
+    with (
+        socket.socket() as connection,
+        pytest.warns(UserWarning, match=r'host "192\.0\.2\.1"'),
+        pytest.raises(pytest_socket.SocketConnectBlockedError),
+    ):
+        connection.connect(("192.0.2.1", 443))
 
 
 async def test_timeout_sanitized(http):
     from unittest.mock import patch
 
     async with aiohttp.ClientSession() as session:
-        with patch.object(session, "request", side_effect=TimeoutError("CANARY")):
-            with pytest.raises(ProviderError, match="transport"):
-                await SportClipsClient(session).search("Example")
+        with (
+            patch.object(session, "request", side_effect=TimeoutError("CANARY")),
+            pytest.raises(ProviderError, match="transport"),
+        ):
+            await SportClipsClient(session).search("Example")
 
 
 @pytest.mark.parametrize("header", ["invalid", "-5", "nan", "inf"])
@@ -82,9 +84,11 @@ async def test_cancellation_propagates_without_becoming_provider_failure(http):
 
     gate = RequestGate()
     async with aiohttp.ClientSession() as session:
-        with patch.object(session, "request", side_effect=asyncio.CancelledError):
-            with pytest.raises(asyncio.CancelledError):
-                await SportClipsClient(session, gate).search("Example")
+        with (
+            patch.object(session, "request", side_effect=asyncio.CancelledError),
+            pytest.raises(asyncio.CancelledError),
+        ):
+            await SportClipsClient(session, gate).search("Example")
     assert gate.failures == 0
 
 
