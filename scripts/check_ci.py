@@ -8,6 +8,7 @@ def accepted(private: bool, results: dict[str, str]) -> bool:
     """Every required job must succeed; only private HACS may skip."""
     return (
         results.get("checks") == "success"
+        and results.get("actionlint") == "success"
         and results.get("hassfest") == "success"
         and results.get("hacs") == ("skipped" if private else "success")
     )
