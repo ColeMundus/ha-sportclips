@@ -65,3 +65,5 @@ for reporting. Code is [MIT licensed](LICENSE). Sport Clips artwork and trademar
 belong to their owners; see the [artwork notice](custom_components/sportclips/brand/NOTICE.md).
 The code license grants no trademark or service-access rights. Use of the service
 is subject to [Sport Clips' terms](https://terms.sportclipsinc.com/).
+
+<!-- Temporary CI measurement docs-01. This PR will be closed unmerged. -->
