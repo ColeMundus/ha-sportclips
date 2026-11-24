@@ -103,6 +103,8 @@ jobs:
           version: '0.12.19'
           python-version: '3.14.7'
           enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ matrix.lane }}
       - run: uv sync --locked --no-default-groups --group dev --group "${LANE}"
         env:
           LANE: ${{ matrix.lane }}
