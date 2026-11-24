@@ -61,7 +61,7 @@ async def test_invalid_timezone_is_sanitized(http, zone, path):
         http.post(payload=envelope(dict(STORE, timeZone=zone)))
     async with aiohttp.ClientSession() as session:
         client = SportClipsClient(session)
-        with pytest.raises(ProviderError, match="^invalid_response$"):
+        with pytest.raises(ProviderError, match=r"^invalid_response$"):
             if path == "discovery":
                 await client.discover(Location("Example", 35, -90))
             else:
