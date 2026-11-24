@@ -101,4 +101,4 @@ from scripts.check_ci import accepted
     ],
 )
 def test_required_gate(private, results, expected):
-    assert accepted(private, results) is expected
+    assert accepted(private=private, results=results) is expected
