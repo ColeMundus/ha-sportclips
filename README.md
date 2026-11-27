@@ -62,6 +62,6 @@ Each salon provides two entities. Default IDs begin with
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development and [SECURITY.md](SECURITY.md)
 for reporting. Code is [MIT licensed](LICENSE). Sport Clips artwork and trademarks
-belong to their owners; see the [artwork notice](custom_components/sportclips/brand/NOTICE.md).
+belong to their owners; see the [artwork notice](NOTICE.md).
 The code license grants no trademark or service-access rights. Use of the service
 is subject to [Sport Clips' terms](https://terms.sportclipsinc.com/).
