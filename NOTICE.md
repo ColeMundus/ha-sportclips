@@ -1,6 +1,6 @@
 # Sport Clips artwork
 
-`icon.png` is the official Sport Clips Haircuts Check-In app icon, resized to
+`custom_components/sportclips/brand/icon.png` is the official Sport Clips Haircuts Check-In app icon, resized to
 256 × 256 without changing the design.
 
 Source: [Sport Clips' App Store listing](https://apps.apple.com/us/app/id1403308360),

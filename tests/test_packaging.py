@@ -26,6 +26,8 @@ def test_manual_package_is_deterministic_self_contained_and_importable(
         names = package.namelist()
         assert names == sorted(set(names))
         assert "custom_components/sportclips/LICENSE" in names
+        assert "custom_components/sportclips/NOTICE.md" in names
+        assert "custom_components/sportclips/brand/NOTICE.md" not in names
         assert "custom_components/sportclips/translations/en.json" in names
         assert "custom_components/sportclips/brand/icon.png" in names
         assert not any("tests" in name or "__pycache__" in name for name in names)
@@ -58,9 +60,27 @@ def test_package_rejects_component_license_drift(tmp_path):
     )
     shutil.copy(ROOT / "pyproject.toml", source)
     shutil.copy(ROOT / "LICENSE", source)
+    shutil.copy(ROOT / "NOTICE.md", source)
     (source / "custom_components/sportclips/LICENSE").write_text("Incorrect license")
 
     with pytest.raises(ValueError, match="license differs"):
+        build(source, tmp_path / "out")
+    assert not (tmp_path / "out").exists()
+
+
+def test_package_rejects_component_notice_drift(tmp_path):
+    source = tmp_path / "source"
+    shutil.copytree(
+        ROOT / "custom_components",
+        source / "custom_components",
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
+    shutil.copy(ROOT / "pyproject.toml", source)
+    shutil.copy(ROOT / "LICENSE", source)
+    shutil.copy(ROOT / "NOTICE.md", source)
+    (source / "custom_components/sportclips/NOTICE.md").write_text("Incorrect notice")
+
+    with pytest.raises(ValueError, match="notice differs"):
         build(source, tmp_path / "out")
     assert not (tmp_path / "out").exists()
 
@@ -77,6 +97,7 @@ def test_invalid_package_source_rejected(tmp_path, damage):
     )
     shutil.copy(ROOT / "pyproject.toml", source)
     shutil.copy(ROOT / "LICENSE", source)
+    shutil.copy(ROOT / "NOTICE.md", source)
     component = source / "custom_components/sportclips"
     if damage == "missing":
         (component / "client.py").unlink()
